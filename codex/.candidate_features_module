@@ -1,0 +1,126 @@
+{
+  "project": "Lolo Recruiting System",
+  "module": "Candidate Smart Features",
+  "description": "Enhances Candidate model with CV parsing, rating system, tags, activity log, and smart filtering.",
+  "folders": {
+    "app/Models": ["Tag.php", "CandidateLog.php"],
+    "app/Services": ["CvParserService.php"],
+    "app/Http/Controllers": ["CandidateRatingController.php", "CandidateTagController.php"],
+    "database/migrations": ["create_tags_table.php", "create_candidate_tag_table.php", "create_candidate_logs_table.php"],
+    "resources/views/candidates": ["partials/_rating.blade.php", "partials/_tags.blade.php", "partials/_activity_log.blade.php", "index.blade.php"]
+  },
+
+  "models": {
+    "Tag": {
+      "fields": {
+        "name": "string"
+      },
+      "relations": {
+        "candidates": "belongsToMany(Candidate::class)"
+      }
+    },
+    "CandidateLog": {
+      "fields": {
+        "candidate_id": "foreignId:candidates",
+        "action": "string",
+        "performed_by": "foreignId:users",
+        "notes": "text"
+      },
+      "relations": {
+        "candidate": "belongsTo(Candidate::class)",
+        "user": "belongsTo(User::class, 'performed_by')"
+      }
+    }
+  },
+
+  "migrations": {
+    "create_tags_table.php": [
+      "id",
+      "string('name')->unique()",
+      "timestamps()"
+    ],
+    "create_candidate_tag_table.php": [
+      "foreignId('candidate_id')->constrained()->onDelete('cascade')",
+      "foreignId('tag_id')->constrained()->onDelete('cascade')",
+      "primary(['candidate_id','tag_id'])"
+    ],
+    "create_candidate_logs_table.php": [
+      "id",
+      "foreignId('candidate_id')->constrained()->onDelete('cascade')",
+      "string('action')",
+      "foreignId('performed_by')->constrained('users')->onDelete('set null')",
+      "text('notes')->nullable()",
+      "timestamps()"
+    ]
+  },
+
+  "services": {
+    "CvParserService.php": [
+      "namespace App\\Services;",
+      "use Smalot\\PdfParser\\Parser;",
+      "class CvParserService {",
+      "  public function parse($filePath) {",
+      "    $parser = new Parser();",
+      "    $pdf = $parser->parseFile($filePath);",
+      "    $text = $pdf->getText();",
+      "    return [",
+      "      'skills' => $this->extractSkills($text),",
+      "      'experience_years' => $this->extractExperience($text),",
+      "      'education_level' => $this->extractEducation($text),",
+      "    ];",
+      "  }",
+      "  protected function extractSkills($text) {",
+      "    preg_match_all('/(PHP|Laravel|JavaScript|SQL|React)/i', $text, $m);",
+      "    return implode(', ', array_unique($m[0]));",
+      "  }",
+      "  protected function extractExperience($text) {",
+      "    if(preg_match('/(\\d+)\\+?\\s*(years|yrs)/i',$text,$m)) return (int)$m[1];",
+      "    return null;",
+      "  }",
+      "  protected function extractEducation($text) {",
+      "    if(stripos($text,'Bachelor')!==false) return 'Bachelor';",
+      "    if(stripos($text,'Master')!==false) return 'Master';",
+      "    return null;",
+      "  }",
+      "}"
+    ]
+  },
+
+  "controllers": {
+    "CandidateRatingController": {
+      "update": [
+        "$candidate = Candidate::findOrFail($id);",
+        "$candidate->rating = $request->input('rating');",
+        "$candidate->save();",
+        "CandidateLog::create(['candidate_id'=>$candidate->id,'action'=>'Updated rating','performed_by'=>auth()->id(),'notes'=>'Set rating to '.$candidate->rating]);",
+        "return back()->with('success','Rating updated');"
+      ]
+    },
+    "CandidateTagController": {
+      "update": [
+        "$candidate = Candidate::findOrFail($id);",
+        "$candidate->tags()->sync($request->input('tags', []));",
+        "CandidateLog::create(['candidate_id'=>$candidate->id,'action'=>'Updated tags','performed_by'=>auth()->id(),'notes'=>'Tags synced']);",
+        "return back()->with('success','Tags updated');"
+      ]
+    }
+  },
+
+  "views": {
+    "candidates/partials/_rating.blade.php": "<form action='{{ route('candidates.rate',$candidate->id) }}' method='POST' class='mb-4'>@csrf<label class='block text-sm font-semibold mb-1'>Rating:</label><select name='rating' class='border rounded p-1'>@for($i=1;$i<=5;$i++)<option value='{{ $i }}' {{ $candidate->rating==$i?'selected':'' }}>{{ $i }} ⭐</option>@endfor</select><button class='ml-2 bg-slate-800 text-white px-3 py-1 rounded'>Save</button></form>",
+    "candidates/partials/_tags.blade.php": "<form action='{{ route('candidates.tags.update',$candidate->id) }}' method='POST'>@csrf<select name='tags[]' multiple class='border rounded w-full p-2'>@foreach($allTags as $tag)<option value='{{ $tag->id }}' {{ in_array($tag->id,$candidate->tags->pluck('id')->toArray())?'selected':'' }}>{{ $tag->name }}</option>@endforeach</select><button class='mt-2 bg-slate-800 text-white px-3 py-1 rounded'>Update Tags</button></form>",
+    "candidates/partials/_activity_log.blade.php": "<div class='mt-6'><h3 class='font-semibold mb-2'>Activity Log</h3><ul class='space-y-2'>@foreach($candidate->logs as $log)<li class='text-sm border-b pb-2'><span class='font-medium'>{{ $log->created_at->format('Y-m-d H:i') }}</span> - {{ $log->action }} by {{ $log->user->name ?? 'System' }}<br><small class='text-slate-500'>{{ $log->notes }}</small></li>@endforeach</ul></div>",
+    "candidates/index.blade.php": "@extends('layouts.app') @section('title','Candidates') @section('content')<h1 class='text-2xl font-semibold mb-4'>Candidates</h1><form method='GET' class='mb-4 flex space-x-2'><input type='text' name='search' placeholder='Search...' value='{{ request('search') }}' class='border rounded p-2 flex-1'><select name='status' class='border rounded p-2'><option value=''>All Statuses</option><option value='active'>Active</option><option value='archived'>Archived</option><option value='blacklisted'>Blacklisted</option></select><input type='number' name='min_exp' placeholder='Min Exp' value='{{ request('min_exp') }}' class='border rounded p-2 w-32'><button class='bg-slate-800 text-white px-4 py-2 rounded'>Filter</button></form><table class='min-w-full border rounded-xl text-sm'><thead class='bg-slate-100 text-slate-600'><tr><th class='px-3 py-2 text-left'>Name</th><th class='px-3 py-2'>Email</th><th class='px-3 py-2'>Experience</th><th class='px-3 py-2'>Rating</th><th class='px-3 py-2'>Actions</th></tr></thead><tbody>@foreach($candidates as $candidate)<tr class='border-b'><td class='px-3 py-2'>{{ $candidate->first_name }} {{ $candidate->last_name }}</td><td class='px-3 py-2'>{{ $candidate->email }}</td><td class='px-3 py-2'>{{ $candidate->experience_years }} yrs</td><td class='px-3 py-2'>{{ $candidate->rating }}⭐</td><td class='px-3 py-2'><a href='{{ route('candidates.show',$candidate->id) }}' class='text-blue-600 underline'>View</a></td></tr>@endforeach</tbody></table>{{ $candidates->links() }}@endsection"
+  },
+
+  "relations_in_candidate_model": {
+    "tags": "belongsToMany(Tag::class)",
+    "logs": "hasMany(CandidateLog::class)"
+  },
+
+  "notes": [
+    "Run composer require smalot/pdfparser phpoffice/phpword for CV parsing.",
+    "Load the new partials in candidates.show: _rating, _tags, _activity_log.",
+    "CandidateController@index should handle search and filtering by request params."
+  ]
+}

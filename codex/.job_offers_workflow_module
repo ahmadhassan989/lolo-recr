@@ -1,0 +1,119 @@
+{
+  "project": "Lolo Recruiting System",
+  "module": "Job Offers & Hiring Workflow",
+  "description": "Allows HR or Recruiters to create, manage, and export job offers for candidates manually from the candidate profile.",
+  "folders": {
+    "app/Models": ["JobOffer.php"],
+    "app/Http/Controllers": ["JobOfferController.php"],
+    "database/migrations": ["create_job_offers_table.php"],
+    "resources/views/job_offers": ["index.blade.php", "create.blade.php", "show.blade.php"],
+    "public/pdf_templates": ["job_offer_template.blade.php"]
+  },
+
+  "models": {
+    "JobOffer": {
+      "fields": {
+        "candidate_id": "foreignId:candidates",
+        "project_id": "foreignId:projects",
+        "position_title": "string",
+        "salary": "decimal:10,2",
+        "currency": "string",
+        "start_date": "date",
+        "contract_duration": "string",
+        "status": "enum:['pending','accepted','declined','expired']",
+        "notes": "text",
+        "created_by": "foreignId:users"
+      },
+      "relations": {
+        "candidate": "belongsTo(Candidate::class)",
+        "project": "belongsTo(Project::class)",
+        "creator": "belongsTo(User::class, 'created_by')"
+      }
+    }
+  },
+
+  "migrations": {
+    "create_job_offers_table.php": [
+      "id",
+      "foreignId('candidate_id')->constrained()->onDelete('cascade')",
+      "foreignId('project_id')->nullable()->constrained()->onDelete('set null')",
+      "string('position_title')",
+      "decimal('salary',10,2)->nullable()",
+      "string('currency',10)->default('USD')",
+      "date('start_date')->nullable()",
+      "string('contract_duration')->nullable()",
+      "enum('status',['pending','accepted','declined','expired'])->default('pending')",
+      "text('notes')->nullable()",
+      "foreignId('created_by')->constrained('users')->onDelete('set null')",
+      "timestamps()"
+    ]
+  },
+
+  "controllers": {
+    "JobOfferController": {
+      "index": [
+        "$offers = JobOffer::with(['candidate','project'])->latest()->paginate(20);",
+        "return view('job_offers.index', compact('offers'));"
+      ],
+      "create": [
+        "$candidate = Candidate::findOrFail(request('candidate_id'));",
+        "$projects = Project::where('status','open')->get();",
+        "return view('job_offers.create', compact('candidate','projects'));"
+      ],
+      "store": [
+        "$offer = JobOffer::create($request->validate([",
+        "  'candidate_id' => 'required|exists:candidates,id',",
+        "  'project_id' => 'nullable|exists:projects,id',",
+        "  'position_title' => 'required|string',",
+        "  'salary' => 'nullable|numeric',",
+        "  'currency' => 'required|string|max:10',",
+        "  'start_date' => 'nullable|date',",
+        "  'contract_duration' => 'nullable|string',",
+        "  'notes' => 'nullable|string',",
+        "] + ['created_by' => auth()->id()]));",
+        "return redirect()->route('job_offers.show',$offer->id)->with('success','Job offer created successfully');"
+      ],
+      "show": [
+        "$offer = JobOffer::with(['candidate','project','creator'])->findOrFail($id);",
+        "return view('job_offers.show', compact('offer'));"
+      ],
+      "exportPdf": [
+        "$offer = JobOffer::with(['candidate','project','creator'])->findOrFail($id);",
+        "$pdf = \\PDF::loadView('pdf_templates.job_offer_template', compact('offer'));",
+        "return $pdf->download('JobOffer_'.$offer->id.'.pdf');"
+      ],
+      "updateStatus": [
+        "$offer = JobOffer::findOrFail($id);",
+        "$offer->status = $request->status;",
+        "$offer->save();",
+        "CandidateLog::create(['candidate_id'=>$offer->candidate_id,'action'=>'Job Offer '.$offer->status,'performed_by'=>auth()->id(),'notes'=>$offer->position_title]);",
+        "return back()->with('success','Offer status updated');"
+      ]
+    }
+  },
+
+  "routes": {
+    "middleware": ["web", "auth"],
+    "definitions": [
+      { "uri": "/job-offers", "controller": "JobOfferController@index" },
+      { "uri": "/job-offers/create", "controller": "JobOfferController@create" },
+      { "uri": "/job-offers", "controller": "JobOfferController@store", "methods": ["POST"] },
+      { "uri": "/job-offers/{id}", "controller": "JobOfferController@show" },
+      { "uri": "/job-offers/{id}/export", "controller": "JobOfferController@exportPdf" },
+      { "uri": "/job-offers/{id}/status", "controller": "JobOfferController@updateStatus", "methods": ["PUT"] }
+    ]
+  },
+
+  "views": {
+    "job_offers/index.blade.php": "@extends('layouts.app') @section('title','Job Offers') @section('content')<h1 class='text-2xl font-semibold mb-6'>Job Offers</h1><table class='min-w-full text-sm border bg-white rounded-xl shadow'><thead class='bg-slate-100 text-gray-600'><tr><th class='px-3 py-2 text-left'>Candidate</th><th class='px-3 py-2 text-left'>Position</th><th class='px-3 py-2 text-left'>Salary</th><th class='px-3 py-2 text-left'>Status</th><th class='px-3 py-2 text-left'>Created By</th><th class='px-3 py-2 text-left'>Actions</th></tr></thead><tbody>@foreach($offers as $offer)<tr class='border-b hover:bg-slate-50'><td class='px-3 py-2'>{{ $offer->candidate->first_name }} {{ $offer->candidate->last_name }}</td><td class='px-3 py-2'>{{ $offer->position_title }}</td><td class='px-3 py-2'>{{ $offer->salary }} {{ $offer->currency }}</td><td class='px-3 py-2 capitalize'>{{ $offer->status }}</td><td class='px-3 py-2'>{{ $offer->creator->name ?? '-' }}</td><td class='px-3 py-2'><a href='{{ route('job_offers.show',$offer->id) }}' class='text-blue-600 underline'>View</a></td></tr>@endforeach</tbody></table>{{ $offers->links() }}@endsection",
+    "job_offers/create.blade.php": "@extends('layouts.app') @section('title','Create Job Offer') @section('content')<h1 class='text-2xl font-semibold mb-6'>Create Job Offer for {{ $candidate->first_name }} {{ $candidate->last_name }}</h1><form action='{{ route('job_offers.store') }}' method='POST' class='space-y-4 bg-white p-6 rounded-xl shadow'>@csrf<input type='hidden' name='candidate_id' value='{{ $candidate->id }}'><div><label class='block font-medium'>Project</label><select name='project_id' class='border rounded p-2 w-full'><option value=''>Select Project</option>@foreach($projects as $p)<option value='{{ $p->id }}'>{{ $p->title }}</option>@endforeach</select></div><div><label class='block font-medium'>Position Title</label><input type='text' name='position_title' class='border rounded p-2 w-full' required></div><div class='grid grid-cols-2 gap-4'><div><label class='block font-medium'>Salary</label><input type='number' step='0.01' name='salary' class='border rounded p-2 w-full'></div><div><label class='block font-medium'>Currency</label><input type='text' name='currency' value='USD' class='border rounded p-2 w-full'></div></div><div class='grid grid-cols-2 gap-4'><div><label class='block font-medium'>Start Date</label><input type='date' name='start_date' class='border rounded p-2 w-full'></div><div><label class='block font-medium'>Contract Duration</label><input type='text' name='contract_duration' class='border rounded p-2 w-full'></div></div><div><label class='block font-medium'>Notes</label><textarea name='notes' class='border rounded p-2 w-full'></textarea></div><button class='bg-slate-800 text-white px-4 py-2 rounded'>Create Offer</button></form>@endsection",
+    "job_offers/show.blade.php": "@extends('layouts.app') @section('title','Job Offer Details') @section('content')<h1 class='text-2xl font-semibold mb-6'>Job Offer</h1><div class='bg-white p-6 rounded-xl shadow space-y-3'><p><strong>Candidate:</strong> {{ $offer->candidate->first_name }} {{ $offer->candidate->last_name }}</p><p><strong>Position:</strong> {{ $offer->position_title }}</p><p><strong>Salary:</strong> {{ $offer->salary }} {{ $offer->currency }}</p><p><strong>Start Date:</strong> {{ $offer->start_date }}</p><p><strong>Contract Duration:</strong> {{ $offer->contract_duration }}</p><p><strong>Status:</strong> <span class='capitalize'>{{ $offer->status }}</span></p><p><strong>Notes:</strong> {{ $offer->notes }}</p><div class='flex gap-3 mt-4'><a href='{{ url('/job-offers/'.$offer->id.'/export') }}' class='bg-slate-800 text-white px-4 py-2 rounded'>⬇️ Export PDF</a><form action='{{ url('/job-offers/'.$offer->id.'/status') }}' method='POST'>@csrf @method('PUT')<select name='status' class='border rounded p-1'><option value='pending' {{ $offer->status=='pending'?'selected':'' }}>Pending</option><option value='accepted' {{ $offer->status=='accepted'?'selected':'' }}>Accepted</option><option value='declined' {{ $offer->status=='declined'?'selected':'' }}>Declined</option><option value='expired' {{ $offer->status=='expired'?'selected':'' }}>Expired</option></select><button class='bg-slate-700 text-white px-3 py-1 rounded ml-2'>Update</button></form></div></div>@endsection",
+    "public/pdf_templates/job_offer_template.blade.php": "<!DOCTYPE html><html><head><meta charset='utf-8'><style>body{font-family:sans-serif;}h1{color:#0f172a;}p{margin:5px 0;}</style></head><body><h1>Job Offer</h1><p><strong>Candidate:</strong> {{ $offer->candidate->first_name }} {{ $offer->candidate->last_name }}</p><p><strong>Project:</strong> {{ $offer->project->title ?? '-' }}</p><p><strong>Position:</strong> {{ $offer->position_title }}</p><p><strong>Salary:</strong> {{ $offer->salary }} {{ $offer->currency }}</p><p><strong>Start Date:</strong> {{ $offer->start_date }}</p><p><strong>Duration:</strong> {{ $offer->contract_duration }}</p><p><strong>Status:</strong> {{ ucfirst($offer->status) }}</p><p><strong>Notes:</strong> {{ $offer->notes }}</p><hr><p>Created by: {{ $offer->creator->name ?? '-' }} | Date: {{ $offer->created_at->format('Y-m-d') }}</p></body></html>"
+  },
+
+  "notes": [
+    "Requires barryvdh/laravel-dompdf for PDF export: composer require barryvdh/laravel-dompdf",
+    "Adds JobOffer model, CRUD, PDF export, and status workflow.",
+    "Integrate 'Create Job Offer' button in candidates.show: link to /job-offers/create?candidate_id={{ $candidate->id }}."
+  ]
+}

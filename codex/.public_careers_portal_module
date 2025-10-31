@@ -1,0 +1,41 @@
+{
+  "project": "Lolo Recruiting System",
+  "module": "Public Careers as Homepage",
+  "description": "Replaces the default Laravel welcome page with the public careers portal as the main landing page.",
+  "folders": {
+    "app/Http/Controllers/Public": ["CareersController.php"],
+    "resources/views/layouts": ["public.blade.php"],
+    "resources/views/public/careers": ["index.blade.php", "show.blade.php", "apply.blade.php", "thanks.blade.php"],
+    "public/css": ["careers.css"]
+  },
+
+  "routes": {
+    "middleware": ["web"],
+    "definitions": [
+      { "uri": "/", "controller": "Public/CareersController@index", "name": "home" },
+      { "uri": "/careers", "controller": "Public/CareersController@index" },
+      { "uri": "/careers/{id}", "controller": "Public/CareersController@show" },
+      { "uri": "/careers/{id}/apply", "controller": "Public/CareersController@applyForm" },
+      { "uri": "/careers/{id}/apply", "controller": "Public/CareersController@submitApplication", "methods": ["POST"] },
+      { "uri": "/careers/thanks", "controller": "Public/CareersController@thankYou" }
+    ]
+  },
+
+  "views": {
+    "layouts/public.blade.php": "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><link rel='stylesheet' href='{{ asset('css/careers.css') }}'><title>@yield('title','Careers at Lolo')</title></head><body><header class='header'><h1 class='logo'><a href='{{ route('home') }}'>Lolo Recruiting</a></h1><nav><a href='{{ route('home') }}'>Careers</a></nav></header><main class='content'>@yield('content')</main><footer class='footer'>&copy; {{ date('Y') }} Lolo Recruiting System</footer></body></html>",
+    "public/careers/index.blade.php": "@extends('layouts.public') @section('title','Open Positions') @section('content')<h2 class='page-title'>Join Our Team</h2><div class='jobs-list'>@foreach($jobs as $job)<div class='job-card'><h3>{{ $job->title }}</h3><p><strong>Department:</strong> {{ $job->department }}</p><p><strong>Location:</strong> {{ $job->location ?? 'Remote' }}</p><a href='{{ url('/careers/'.$job->id) }}' class='btn'>View Details</a></div>@endforeach</div>{{ $jobs->links() }}@endsection",
+    "public/careers/show.blade.php": "@extends('layouts.public') @section('title',$job->title) @section('content')<a href='{{ url('/careers') }}' class='back-link'>&larr; Back to Careers</a><h2>{{ $job->title }}</h2><p><strong>Department:</strong> {{ $job->department }}</p><p><strong>Location:</strong> {{ $job->location }}</p><div class='desc'><h4>Description</h4><p>{{ $job->description }}</p><h4>Requirements</h4><p>{{ $job->requirements }}</p><h4>Skills</h4><p>{{ $job->skills }}</p></div><a href='{{ url('/careers/'.$job->id.'/apply') }}' class='btn-primary'>Apply Now</a>@endsection",
+    "public/careers/apply.blade.php": "@extends('layouts.public') @section('title','Apply for '.$job->title) @section('content')<h2>Apply for {{ $job->title }}</h2><form method='POST' action='{{ url('/careers/'.$job->id.'/apply') }}' enctype='multipart/form-data'>@csrf<label>First Name</label><input type='text' name='first_name' required><label>Last Name</label><input type='text' name='last_name' required><label>Email</label><input type='email' name='email' required><label>Phone</label><input type='text' name='phone'><label>Resume (PDF/DOC)</label><input type='file' name='resume' required><button class='btn-primary'>Submit Application</button></form>@endsection",
+    "public/careers/thanks.blade.php": "@extends('layouts.public') @section('title','Thank You') @section('content')<h2>Thank You!</h2><p>Your application has been received successfully.</p><a href='{{ route('home') }}' class='btn'>Back to Careers</a>@endsection"
+  },
+
+  "assets": {
+    "public/css/careers.css": "body{font-family:sans-serif;background:#f9fafb;margin:0;padding:0;color:#222;}header.header{background:#0f172a;color:#fff;padding:15px 30px;display:flex;justify-content:space-between;align-items:center;}header.header a{color:#fff;text-decoration:none;margin-left:15px;}main.content{padding:40px;}h2.page-title{text-align:center;margin-bottom:30px;} .jobs-list{display:grid;gap:20px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));} .job-card{background:#fff;border:1px solid #ddd;padding:20px;border-radius:10px;transition:0.3s;} .job-card:hover{box-shadow:0 2px 10px rgba(0,0,0,0.1);} .btn,.btn-primary{display:inline-block;padding:10px 16px;border-radius:6px;text-decoration:none;font-weight:600;margin-top:10px;} .btn{background:#eee;color:#333;} .btn-primary{background:#0f172a;color:#fff;}footer.footer{text-align:center;padding:20px;background:#f1f5f9;margin-top:40px;}"
+  },
+
+  "notes": [
+    "Makes /careers (open jobs list) the main homepage at '/'.",
+    "Adds simple layout header/footer for a clean public look.",
+    "You can delete welcome.blade.php safely after applying this."
+  ]
+}

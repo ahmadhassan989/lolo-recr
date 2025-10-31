@@ -1,0 +1,46 @@
+{
+  "project": "Lolo Recruiting System",
+  "module": "Dashboard Analytics",
+  "description": "Adds analytics widgets, charts, and reports to the admin dashboard, showing candidate trends, top skills, hiring rates, and interview stats.",
+  "folders": {
+    "app/Http/Controllers/Admin": ["AnalyticsController.php"],
+    "resources/views/admin": ["analytics.blade.php"],
+    "public/js/charts": ["dashboard-charts.js"]
+  },
+
+  "controller": {
+    "Admin/AnalyticsController": {
+      "index": [
+        "$totalCandidates = Candidate::count();",
+        "$totalProjects = Project::count();",
+        "$totalApplications = Application::count();",
+        "$totalHired = Application::where('status','hired')->count();",
+        "$monthlyCandidates = Candidate::selectRaw('MONTH(created_at) as month, COUNT(*) as total')->groupBy('month')->pluck('total','month');",
+        "$topSkills = Candidate::selectRaw('skills, COUNT(*) as count')->whereNotNull('skills')->groupBy('skills')->orderByDesc('count')->limit(5)->get();",
+        "$interviewStats = DB::table('interviews')->selectRaw('result, COUNT(*) as total')->groupBy('result')->pluck('total','result');",
+        "return view('admin.analytics', compact('totalCandidates','totalProjects','totalApplications','totalHired','monthlyCandidates','topSkills','interviewStats'));"
+      ]
+    }
+  },
+
+  "routes": {
+    "middleware": ["web", "auth", "can:admin"],
+    "definitions": [
+      { "uri": "/admin/analytics", "controller": "Admin/AnalyticsController@index" }
+    ]
+  },
+
+  "views": {
+    "admin/analytics.blade.php": "@extends('layouts.app') @section('title','Analytics Dashboard') @section('content')<h1 class='text-2xl font-semibold mb-6'>Recruiting Analytics</h1><div class='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8'><div class='bg-white shadow p-4 rounded-xl text-center'><h3 class='text-sm text-gray-500'>Total Candidates</h3><p class='text-2xl font-bold mt-2 text-slate-800'>{{ $totalCandidates }}</p></div><div class='bg-white shadow p-4 rounded-xl text-center'><h3 class='text-sm text-gray-500'>Total Projects</h3><p class='text-2xl font-bold mt-2 text-slate-800'>{{ $totalProjects }}</p></div><div class='bg-white shadow p-4 rounded-xl text-center'><h3 class='text-sm text-gray-500'>Applications</h3><p class='text-2xl font-bold mt-2 text-slate-800'>{{ $totalApplications }}</p></div><div class='bg-white shadow p-4 rounded-xl text-center'><h3 class='text-sm text-gray-500'>Hired</h3><p class='text-2xl font-bold mt-2 text-slate-800'>{{ $totalHired }}</p></div></div><div class='grid grid-cols-1 lg:grid-cols-2 gap-8'><div class='bg-white p-6 rounded-xl shadow'><h2 class='font-semibold mb-4'>Candidates by Month</h2><canvas id='candidatesChart' height='140'></canvas></div><div class='bg-white p-6 rounded-xl shadow'><h2 class='font-semibold mb-4'>Interview Results</h2><canvas id='interviewChart' height='140'></canvas></div></div><div class='mt-8 bg-white p-6 rounded-xl shadow'><h2 class='font-semibold mb-4'>Top 5 Skills</h2><table class='min-w-full text-sm border'><thead class='bg-slate-100 text-gray-600'><tr><th class='px-3 py-2 text-left'>Skill</th><th class='px-3 py-2 text-left'>Count</th></tr></thead><tbody>@foreach($topSkills as $skill)<tr class='border-b'><td class='px-3 py-2'>{{ $skill->skills }}</td><td class='px-3 py-2'>{{ $skill->count }}</td></tr>@endforeach</tbody></table></div><script src='https://cdn.jsdelivr.net/npm/chart.js'></script><script src='{{ asset('js/charts/dashboard-charts.js') }}'></script>@endsection"
+  },
+
+  "assets": {
+    "public/js/charts/dashboard-charts.js": "document.addEventListener('DOMContentLoaded',()=>{const candidatesCtx=document.getElementById('candidatesChart');if(candidatesCtx){new Chart(candidatesCtx,{type:'line',data:{labels:Object.keys(@json($monthlyCandidates)),datasets:[{label:'New Candidates',data:Object.values(@json($monthlyCandidates)),borderColor:'#0f172a',tension:0.4}]},options:{scales:{y:{beginAtZero:true}}}});}const interviewCtx=document.getElementById('interviewChart');if(interviewCtx){new Chart(interviewCtx,{type:'doughnut',data:{labels:Object.keys(@json($interviewStats)),datasets:[{data:Object.values(@json($interviewStats)),backgroundColor:['#16a34a','#dc2626','#f59e0b']}]}});}});"
+  },
+
+  "notes": [
+    "Adds analytics page at /admin/analytics with charts using Chart.js.",
+    "Requires Chart.js CDN and DB::table('interviews') availability.",
+    "Integrates with existing dashboard menu under Admin section."
+  ]
+}

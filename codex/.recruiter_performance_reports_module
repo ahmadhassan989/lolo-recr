@@ -1,0 +1,74 @@
+{
+  "project": "Lolo Recruiting System",
+  "module": "Recruiter Performance Reports",
+  "description": "Standalone analytics page to track recruiter performance with charts, KPIs, and CSV export.",
+  "folders": {
+    "app/Http/Controllers/Admin": ["RecruiterPerformanceController.php"],
+    "resources/views/admin/reports": ["recruiters.blade.php"],
+    "public/js/charts": ["recruiter-performance.js"]
+  },
+
+  "controllers": {
+    "Admin/RecruiterPerformanceController": {
+      "index": [
+        "$from = request('from', now()->startOfMonth()->toDateString());",
+        "$to = request('to', now()->endOfMonth()->toDateString());",
+        "$recruiters = User::where('role','recruiter')->get();",
+        "$performance = $recruiters->map(function($r){",
+        "   $added = Candidate::where('created_by',$r->id)->count();",
+        "   $interviews = DB::table('interviews')->where('interviewer',$r->name)->count();",
+        "   $hired = Application::where('status','hired')->whereIn('candidate_id',Candidate::where('created_by',$r->id)->pluck('id'))->count();",
+        "   $conversion = $added ? round(($hired / $added) * 100, 1) : 0;",
+        "   return [",
+        "       'name' => $r->name,",
+        "       'added' => $added,",
+        "       'interviews' => $interviews,",
+        "       'hired' => $hired,",
+        "       'conversion' => $conversion",
+        "   ];",
+        "});",
+        "return view('admin.reports.recruiters', compact('performance','from','to'));"
+      ],
+      "exportCsv": [
+        "$from = request('from'); $to = request('to');",
+        "$recruiters = User::where('role','recruiter')->get();",
+        "$filename = 'recruiter_performance_'.now()->format('Ymd_His').'.csv';",
+        "return response()->streamDownload(function() use ($recruiters){",
+        "  $out = fopen('php://output','w');",
+        "  fputcsv($out,['Recruiter','Candidates Added','Interviews','Hired','Conversion %']);",
+        "  foreach($recruiters as $r){",
+        "    $added = Candidate::where('created_by',$r->id)->count();",
+        "    $interviews = DB::table('interviews')->where('interviewer',$r->name)->count();",
+        "    $hired = Application::where('status','hired')->whereIn('candidate_id',Candidate::where('created_by',$r->id)->pluck('id'))->count();",
+        "    $conversion = $added ? round(($hired / $added) * 100, 1) : 0;",
+        "    fputcsv($out,[$r->name,$added,$interviews,$hired,$conversion]);",
+        "  }",
+        "  fclose($out);",
+        "}, $filename);"
+      ]
+    }
+  },
+
+  "routes": {
+    "middleware": ["web", "auth", "can:admin"],
+    "definitions": [
+      { "uri": "/admin/reports/recruiters", "controller": "Admin/RecruiterPerformanceController@index" },
+      { "uri": "/admin/reports/recruiters/export", "controller": "Admin/RecruiterPerformanceController@exportCsv" }
+    ]
+  },
+
+  "views": {
+    "admin/reports/recruiters.blade.php": "@extends('layouts.app') @section('title','Recruiter Performance Report') @section('content')<h1 class='text-2xl font-semibold mb-6'>Recruiter Performance</h1><form method='GET' class='mb-6 flex flex-wrap items-end gap-4'><div><label class='block text-sm font-semibold mb-1'>From</label><input type='date' name='from' value='{{ $from }}' class='border rounded p-2'></div><div><label class='block text-sm font-semibold mb-1'>To</label><input type='date' name='to' value='{{ $to }}' class='border rounded p-2'></div><div><button class='bg-slate-800 text-white px-4 py-2 rounded mt-4'>Filter</button></div><a href='{{ url('/admin/reports/recruiters/export') }}' class='bg-slate-700 text-white px-4 py-2 rounded mt-4 ml-auto hover:bg-slate-600'>⬇️ Export CSV</a></form><div class='bg-white p-6 rounded-xl shadow mb-8'><canvas id='recruiterChart' height='160'></canvas></div><table class='min-w-full border text-sm rounded-xl bg-white shadow'><thead class='bg-slate-100 text-gray-600'><tr><th class='px-3 py-2 text-left'>Recruiter</th><th class='px-3 py-2 text-left'>Candidates Added</th><th class='px-3 py-2 text-left'>Interviews</th><th class='px-3 py-2 text-left'>Hired</th><th class='px-3 py-2 text-left'>Conversion %</th></tr></thead><tbody>@foreach($performance as $r)<tr class='border-b hover:bg-slate-50'><td class='px-3 py-2 font-semibold'>{{ $r['name'] }}</td><td class='px-3 py-2'>{{ $r['added'] }}</td><td class='px-3 py-2'>{{ $r['interviews'] }}</td><td class='px-3 py-2'>{{ $r['hired'] }}</td><td class='px-3 py-2 text-slate-700 font-medium'>{{ $r['conversion'] }}%</td></tr>@endforeach</tbody></table><script src='https://cdn.jsdelivr.net/npm/chart.js'></script><script src='{{ asset('js/charts/recruiter-performance.js') }}'></script>@endsection"
+  },
+
+  "assets": {
+    "public/js/charts/recruiter-performance.js": "document.addEventListener('DOMContentLoaded',()=>{const ctx=document.getElementById('recruiterChart');if(!ctx)return;const names=@json($performance->pluck('name'));const hires=@json($performance->pluck('hired'));const conversions=@json($performance->pluck('conversion'));new Chart(ctx,{type:'bar',data:{labels:names,datasets:[{label:'Hired',data:hires,backgroundColor:'#0f172a'},{label:'Conversion %',data:conversions,backgroundColor:'#16a34a'}]},options:{responsive:true,plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true}}}});});"
+  },
+
+  "notes": [
+    "Creates standalone page /admin/reports/recruiters with recruiter performance table & chart.",
+    "Includes filter by date range and CSV export.",
+    "Uses Chart.js for visualizing recruiter performance (hires & conversion).",
+    "Data is aggregated from Candidates, Interviews, and Applications."
+  ]
+}

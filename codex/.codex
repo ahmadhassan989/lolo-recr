@@ -1,0 +1,123 @@
+{
+  "project": "Lolo Recruiting System",
+  "description": "A full-featured Laravel Recruiting & Applicant Tracking System (ATS) with Projects, Candidates, Applications, and Admin Dashboard.",
+  "stack": {
+    "backend": "Laravel 12 + PHP 8.3 + MySQL",
+    "frontend": "Blade + TailwindCSS",
+    "auth": "Laravel Breeze (with roles middleware)"
+  },
+  "roles": ["super_admin", "hr", "recruiter"],
+  "folders": {
+    "app/Models": ["Project.php", "Candidate.php", "Application.php"],
+    "app/Http/Controllers": [
+      "ProjectController.php",
+      "CandidateController.php",
+      "ApplicationController.php",
+      "Admin/DashboardController.php"
+    ],
+    "database/migrations": [
+      "create_projects_table.php",
+      "create_candidates_table.php",
+      "create_applications_table.php"
+    ],
+    "resources/views": {
+      "layouts": ["app.blade.php"],
+      "projects": ["index.blade.php", "create.blade.php", "edit.blade.php", "show.blade.php"],
+      "candidates": ["index.blade.php", "create.blade.php", "edit.blade.php", "show.blade.php"],
+      "applications": ["index.blade.php", "show.blade.php"],
+      "admin": ["dashboard.blade.php"]
+    },
+    "routes": ["web.php"]
+  },
+  "models": {
+    "Project": {
+      "fields": {
+        "title": "string",
+        "department": "string",
+        "location": "string",
+        "description": "text",
+        "status": "enum:['open','closed']",
+        "created_by": "foreignId:users"
+      },
+      "relations": { "applications": "hasMany(Application)" }
+    },
+    "Candidate": {
+      "fields": {
+        "first_name": "string",
+        "last_name": "string",
+        "email": "string",
+        "phone": "string",
+        "cv_file": "string",
+        "linkedin_url": "string",
+        "skills": "text",
+        "experience_years": "int",
+        "notes": "text"
+      },
+      "relations": { "applications": "hasMany(Application)" }
+    },
+    "Application": {
+      "fields": {
+        "project_id": "foreignId:projects",
+        "candidate_id": "foreignId:candidates",
+        "status": "enum:['applied','screening','interview','offer','hired','rejected']",
+        "notes": "text",
+        "updated_by": "foreignId:users"
+      },
+      "relations": {
+        "project": "belongsTo(Project)",
+        "candidate": "belongsTo(Candidate)"
+      }
+    }
+  },
+  "controllers": {
+    "ProjectController": ["index", "create", "store", "edit", "update", "destroy"],
+    "CandidateController": ["index", "create", "store", "edit", "update", "destroy"],
+    "ApplicationController": ["index", "show", "updateStatus"],
+    "Admin/DashboardController": {
+      "index": {
+        "description": "Display system statistics for Super Admin / HR users.",
+        "logic": [
+          "$stats = [",
+          "   'candidates' => Candidate::count(),",
+          "   'open_projects' => Project::where('status', 'open')->count(),",
+          "   'applications' => Application::count(),",
+          "   'hired' => Application::where('status', 'hired')->count(),",
+          "];",
+          "return view('admin.dashboard', compact('stats'));"
+        ]
+      }
+    }
+  },
+  "routes": {
+    "middleware": ["web", "auth"],
+    "definitions": [
+      { "uri": "/projects", "controller": "ProjectController" },
+      { "uri": "/candidates", "controller": "CandidateController" },
+      { "uri": "/applications", "controller": "ApplicationController" },
+      { "uri": "/admin/dashboard", "controller": "Admin/DashboardController" }
+    ]
+  },
+  "views": {
+    "layouts/app.blade.php": "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>@yield('title','Recruiting System')</title><link href='{{ asset('css/app.css') }}' rel='stylesheet'></head><body class='bg-gray-100 min-h-screen'><nav class='bg-slate-900 text-white p-3 flex justify-between items-center'><a href='/' class='font-bold'>Lolo Recruiting</a><div class='space-x-4'><a href='/projects'>Projects</a><a href='/candidates'>Candidates</a><a href='/applications'>Applications</a><a href='/admin/dashboard'>Dashboard</a></div></nav><main class='p-6'>@yield('content')</main></body></html>",
+    "admin/dashboard.blade.php": "@extends('layouts.app') @section('title','Dashboard') @section('content')<h1 class='text-2xl font-semibold mb-6'>Dashboard</h1><div class='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6'> <div class='bg-white shadow p-4 rounded-xl text-center'><h3 class='text-sm text-gray-500'>Total Candidates</h3><p class='text-2xl font-bold mt-2 text-slate-800'>{{ $stats['candidates'] }}</p></div><div class='bg-white shadow p-4 rounded-xl text-center'><h3 class='text-sm text-gray-500'>Open Projects</h3><p class='text-2xl font-bold mt-2 text-slate-800'>{{ $stats['open_projects'] }}</p></div><div class='bg-white shadow p-4 rounded-xl text-center'><h3 class='text-sm text-gray-500'>Applications</h3><p class='text-2xl font-bold mt-2 text-slate-800'>{{ $stats['applications'] }}</p></div><div class='bg-white shadow p-4 rounded-xl text-center'><h3 class='text-sm text-gray-500'>Hired</h3><p class='text-2xl font-bold mt-2 text-slate-800'>{{ $stats['hired'] }}</p></div></div>@endsection"
+  },
+  "permissions": {
+    "super_admin": ["*"],
+    "hr": ["projects.view", "candidates.manage", "applications.manage"],
+    "recruiter": ["candidates.view", "applications.update"]
+  },
+  "seeders": {
+    "UsersTableSeeder": ["super_admin", "hr", "recruiter"],
+    "ProjectsTableSeeder": 5,
+    "CandidatesTableSeeder": 20,
+    "ApplicationsTableSeeder": 30
+  },
+  "commands": {
+    "setup": [
+      "composer create-project laravel/laravel recruiting-system",
+      "cd recruiting-system",
+      "php artisan migrate --seed",
+      "php artisan serve"
+    ]
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "project": "Lolo Recruiting System",
+  "module": "Job Offer Digital Signature & Email Sending",
+  "description": "Enables sending job offers by email and allows candidates to digitally sign or decline them through a secure web link.",
+  "folders": {
+    "app/Http/Controllers": ["JobOfferSignatureController.php"],
+    "app/Mail": ["JobOfferMail.php"],
+    "resources/views/emails": ["job_offer_email.blade.php"],
+    "resources/views/job_offers": ["signature_form.blade.php", "signature_success.blade.php"],
+    "public/js": ["signature-pad.js"]
+  },
+
+  "migrations": {
+    "update_job_offers_table_add_signature_fields.php": [
+      "Schema::table('job_offers', function (Blueprint $table) {",
+      "  $table->string('signature_name')->nullable();",
+      "  $table->string('signature_ip')->nullable();",
+      "  $table->timestamp('signed_at')->nullable();",
+      "  $table->string('signature_file')->nullable();",
+      "});"
+    ]
+  },
+
+  "controllers": {
+    "JobOfferSignatureController": {
+      "sendEmail": [
+        "$offer = JobOffer::with('candidate')->findOrFail($id);",
+        "\\Mail::to($offer->candidate->email)->send(new JobOfferMail($offer));",
+        "return back()->with('success','Offer email sent successfully');"
+      ],
+      "showSignatureForm": [
+        "$offer = JobOffer::findOrFail($id);",
+        "return view('job_offers.signature_form', compact('offer'));"
+      ],
+      "submitSignature": [
+        "$offer = JobOffer::findOrFail($id);",
+        "$dataUrl = $request->input('signature_data');",
+        "$image = str_replace('data:image/png;base64,', '', $dataUrl);",
+        "$image = str_replace(' ', '+', $image);",
+        "$fileName = 'signatures/'.uniqid('sig_').'.png';",
+        "Storage::disk('public')->put($fileName, base64_decode($image));",
+        "$offer->update(['signature_name'=>$request->input('signature_name'),'signature_ip'=>$request->ip(),'signed_at'=>now(),'signature_file'=>$fileName,'status'=>'accepted']);",
+        "return view('job_offers.signature_success', compact('offer'));"
+      ],
+      "declineOffer": [
+        "$offer = JobOffer::findOrFail($id);",
+        "$offer->update(['status'=>'declined','signed_at'=>now(),'signature_ip'=>$request->ip()]);",
+        "return view('job_offers.signature_success', compact('offer'));"
+      ]
+    }
+  },
+
+  "mailables": {
+    "JobOfferMail.php": [
+      "namespace App\\Mail;",
+      "use App\\Models\\JobOffer;",
+      "use Illuminate\\Mail\\Mailable;",
+      "class JobOfferMail extends Mailable {",
+      "  public $offer;",
+      "  public function __construct(JobOffer $offer){$this->offer=$offer;}",
+      "  public function build(){",
+      "    return $this->subject('Your Job Offer from Lolo Recruiting System')",
+      "                ->view('emails.job_offer_email');",
+      "  }",
+      "}"
+    ]
+  },
+
+  "routes": {
+    "middleware": ["web"],
+    "definitions": [
+      { "uri": "/job-offers/{id}/send-email", "controller": "JobOfferSignatureController@sendEmail", "methods": ["POST"], "middleware": ["auth"] },
+      { "uri": "/offer/{id}/sign", "controller": "JobOfferSignatureController@showSignatureForm" },
+      { "uri": "/offer/{id}/sign", "controller": "JobOfferSignatureController@submitSignature", "methods": ["POST"] },
+      { "uri": "/offer/{id}/decline", "controller": "JobOfferSignatureController@declineOffer", "methods": ["POST"] }
+    ]
+  },
+
+  "views": {
+    "emails/job_offer_email.blade.php": "<!DOCTYPE html><html><body><h2>Job Offer</h2><p>Dear {{ $offer->candidate->first_name }},</p><p>You have received a job offer for the position of <strong>{{ $offer->position_title }}</strong>.</p><p>Salary: {{ $offer->salary }} {{ $offer->currency }} | Start Date: {{ $offer->start_date }}</p><p><a href='{{ url('/offer/'.$offer->id.'/sign') }}' style='background:#0f172a;color:#fff;padding:10px 16px;text-decoration:none;border-radius:4px;'>View & Sign Offer</a></p><p>If you wish to decline, click <a href='{{ url('/offer/'.$offer->id.'/decline') }}'>here</a>.</p><p>Best regards,<br>Lolo Recruiting Team</p></body></html>",
+    "job_offers/signature_form.blade.php": "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Sign Job Offer</title><script src='{{ asset('js/signature-pad.js') }}'></script><style>body{font-family:sans-serif;background:#f9fafb;padding:40px;}canvas{border:1px solid #ddd;width:100%;height:200px;border-radius:6px;}</style></head><body><h2>Sign Job Offer - {{ $offer->position_title }}</h2><form method='POST' action='{{ url('/offer/'.$offer->id.'/sign') }}'>@csrf<label>Your Full Name:</label><input type='text' name='signature_name' required class='border p-2 rounded w-full mb-3'><canvas id='signature'></canvas><input type='hidden' name='signature_data' id='signature_data'><button type='button' id='clear' class='bg-gray-300 text-sm px-3 py-1 rounded mt-2'>Clear</button><button type='submit' class='bg-slate-800 text-white px-4 py-2 rounded mt-2 ml-2'>Submit Signature</button></form><script>const canvas=document.getElementById('signature');const sigPad=new SignaturePad(canvas);document.querySelector('form').addEventListener('submit',()=>{document.getElementById('signature_data').value=sigPad.toDataURL();});document.getElementById('clear').addEventListener('click',()=>sigPad.clear());</script></body></html>",
+    "job_offers/signature_success.blade.php": "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Offer Response</title><style>body{font-family:sans-serif;text-align:center;padding:60px;}</style></head><body><h1>Thank you, {{ $offer->signature_name ?? 'Candidate' }}</h1><p>Your response for the offer <strong>{{ $offer->position_title }}</strong> has been recorded as: <strong style='text-transform:capitalize;'>{{ $offer->status }}</strong>.</p><p>Date: {{ $offer->signed_at->format('Y-m-d H:i') }}</p></body></html>"
+  },
+
+  "assets": {
+    "public/js/signature-pad.js": "/* Load Signature Pad from CDN if not available */"
+  },
+
+  "notes": [
+    "Adds email sending and digital signature workflow.",
+    "Requires mail configuration in .env (MAIL_MAILER, MAIL_HOST, MAIL_FROM_ADDRESS, etc).",
+    "Uses base64 PNG signature stored under storage/app/public/signatures/",
+    "Automatically updates JobOffer.status and logs signature metadata."
+  ]
+}
+
+not done

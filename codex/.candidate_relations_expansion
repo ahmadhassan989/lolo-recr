@@ -1,0 +1,87 @@
+{
+  "project": "Lolo Recruiting System",
+  "module": "Candidate Relations Expansion",
+  "description": "Adds interviews and attachments modules to Candidate model, including migrations, relationships, and Blade tabs inside candidates.show.",
+  "folders": {
+    "app/Models": ["Interview.php", "Attachment.php"],
+    "app/Http/Controllers": ["InterviewController.php", "AttachmentController.php"],
+    "database/migrations": ["create_interviews_table.php", "create_attachments_table.php"],
+    "resources/views/candidates": ["show.blade.php", "partials/_interviews.blade.php", "partials/_attachments.blade.php"]
+  },
+
+  "models": {
+    "Interview": {
+      "fields": {
+        "candidate_id": "foreignId:candidates",
+        "project_id": "foreignId:projects",
+        "interview_date": "datetime",
+        "interviewer": "string",
+        "type": "enum:['hr','technical','final']",
+        "result": "enum:['pending','passed','failed']",
+        "notes": "text"
+      },
+      "relations": {
+        "candidate": "belongsTo(Candidate)",
+        "project": "belongsTo(Project)"
+      }
+    },
+    "Attachment": {
+      "fields": {
+        "candidate_id": "foreignId:candidates",
+        "file_path": "string",
+        "file_name": "string",
+        "type": "enum:['cv','certificate','id','other']",
+        "uploaded_by": "foreignId:users"
+      },
+      "relations": {
+        "candidate": "belongsTo(Candidate)",
+        "uploader": "belongsTo(User)"
+      }
+    }
+  },
+
+  "controllers": {
+    "InterviewController": ["store", "update", "destroy"],
+    "AttachmentController": ["store", "destroy", "download"]
+  },
+
+  "migrations": {
+    "create_interviews_table.php": [
+      "id",
+      "foreignId('candidate_id')->constrained()->onDelete('cascade')",
+      "foreignId('project_id')->nullable()->constrained()->onDelete('set null')",
+      "dateTime('interview_date')",
+      "string('interviewer')->nullable()",
+      "enum('type',['hr','technical','final'])->default('hr')",
+      "enum('result',['pending','passed','failed'])->default('pending')",
+      "text('notes')->nullable()",
+      "timestamps()"
+    ],
+    "create_attachments_table.php": [
+      "id",
+      "foreignId('candidate_id')->constrained()->onDelete('cascade')",
+      "string('file_path')",
+      "string('file_name')",
+      "enum('type',['cv','certificate','id','other'])->default('other')",
+      "foreignId('uploaded_by')->nullable()->constrained('users')->onDelete('set null')",
+      "timestamps()"
+    ]
+  },
+
+  "views": {
+    "candidates/show.blade.php": "@extends('layouts.app') @section('title','Candidate Details') @section('content')<div class='bg-white shadow rounded-xl p-6'><h1 class='text-2xl font-bold mb-4'>{{ $candidate->first_name }} {{ $candidate->last_name }}</h1><div class='flex space-x-4 border-b mb-4'><button x-data @click='tab=\"interviews\"' class='px-4 py-2 text-sm font-semibold border-b-2' :class=\"tab==='interviews'?'border-slate-700 text-slate-800':'border-transparent text-slate-500'\">Interviews</button><button @click='tab=\"attachments\"' class='px-4 py-2 text-sm font-semibold border-b-2' :class=\"tab==='attachments'?'border-slate-700 text-slate-800':'border-transparent text-slate-500'\">Attachments</button></div><div x-data='{tab:\"interviews\"}'>@include('candidates.partials._interviews')@include('candidates.partials._attachments')</div></div>@endsection",
+    "candidates/partials/_interviews.blade.php": "<div x-show='tab===\"interviews\"' class='mt-4'><table class='min-w-full border rounded-xl'><thead class='bg-slate-100 text-sm text-slate-600'><tr><th class='px-3 py-2 text-left'>Date</th><th class='px-3 py-2 text-left'>Type</th><th class='px-3 py-2 text-left'>Result</th><th class='px-3 py-2 text-left'>Interviewer</th><th class='px-3 py-2'>Notes</th></tr></thead><tbody>@foreach($candidate->interviews as $interview)<tr class='border-b text-sm'><td class='px-3 py-2'>{{ $interview->interview_date->format('Y-m-d H:i') }}</td><td class='px-3 py-2'>{{ ucfirst($interview->type) }}</td><td class='px-3 py-2'>{{ ucfirst($interview->result) }}</td><td class='px-3 py-2'>{{ $interview->interviewer }}</td><td class='px-3 py-2'>{{ $interview->notes }}</td></tr>@endforeach</tbody></table></div>",
+    "candidates/partials/_attachments.blade.php": "<div x-show='tab===\"attachments\"' class='mt-4'><table class='min-w-full border rounded-xl'><thead class='bg-slate-100 text-sm text-slate-600'><tr><th class='px-3 py-2 text-left'>File</th><th class='px-3 py-2 text-left'>Type</th><th class='px-3 py-2 text-left'>Uploaded</th><th class='px-3 py-2 text-left'>Actions</th></tr></thead><tbody>@foreach($candidate->attachments as $file)<tr class='border-b text-sm'><td class='px-3 py-2'><a href='{{ Storage::url($file->file_path) }}' class='text-blue-600 underline' target='_blank'>{{ $file->file_name }}</a></td><td class='px-3 py-2'>{{ ucfirst($file->type) }}</td><td class='px-3 py-2'>{{ $file->created_at->format('Y-m-d') }}</td><td class='px-3 py-2'><form action='{{ route('attachments.destroy', $file->id) }}' method='POST'>@csrf @method('DELETE')<button type='submit' class='text-red-600 hover:underline'>Delete</button></form></td></tr>@endforeach</tbody></table></div>"
+  },
+
+  "relations_in_candidate_model": {
+    "interviews": "hasMany(Interview::class)",
+    "attachments": "hasMany(Attachment::class)"
+  },
+
+  "notes": [
+    "Add `public function interviews()` and `public function attachments()` to Candidate model.",
+    "Include @include('candidates.partials._interviews') and _attachments in candidates.show blade.",
+    "Ensure Alpine.js is loaded for tab switching (already in layouts.app)."
+  ]
+}
