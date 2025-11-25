@@ -19,6 +19,9 @@ class CandidateController extends Controller
     {
         $this->authorize('candidates.view');
 
+        $user = $request->user();
+        $projectIds = $user->accessibleProjectIds();
+
         $candidates = Candidate::query()
             ->with(['tags:id,name'])
             ->withCount('applications')
@@ -41,11 +44,31 @@ class CandidateController extends Controller
                 $request->filled('min_exp'),
                 fn ($query) => $query->where('experience_years', '>=', (int) $request->input('min_exp'))
             )
+            ->when(
+                $projectIds,
+                function ($query) use ($projectIds) {
+                    if ($projectIds->isEmpty()) {
+                        $query->whereRaw('1=0');
+                    } else {
+                        $ids = $projectIds->all();
+                        $query->whereHas('applications', fn ($app) => $app->whereIn('project_id', $ids));
+                    }
+                }
+            )
+            ->when(
+                $request->filled('project_id'),
+                fn ($query) => $query->whereHas('applications', fn ($app) => $app->where('project_id', $request->integer('project_id')))
+            )
             ->orderByDesc('updated_at')
             ->paginate(10)
             ->withQueryString();
 
-        return view('candidates.index', compact('candidates'));
+        $filterProjects = Project::query()
+            ->orderBy('title')
+            ->when($projectIds, fn ($query) => $query->whereIn('id', $projectIds->all()))
+            ->get(['id', 'title']);
+
+        return view('candidates.index', compact('candidates', 'filterProjects'));
     }
 
     /**
@@ -102,9 +125,10 @@ class CandidateController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Candidate $candidate): View
+    public function show(Request $request, Candidate $candidate): View
     {
         $this->authorize('candidates.view');
+        $this->enforceCandidateVisibility($request->user(), $candidate);
 
         $candidate->load([
             'applications.project',
@@ -183,5 +207,26 @@ class CandidateController extends Controller
         return redirect()
             ->route('candidates.index')
             ->with('status', 'Candidate deleted successfully.');
+    }
+
+    protected function enforceCandidateVisibility($user, Candidate $candidate): void
+    {
+        if (! $user->restrictsToAssignedProjects()) {
+            return;
+        }
+
+        $projectIds = $user->accessibleProjectIds() ?? collect();
+
+        if ($projectIds->isEmpty()) {
+            abort(403);
+        }
+
+        $visible = $candidate->applications()
+            ->whereIn('project_id', $projectIds->all())
+            ->exists();
+
+        if (! $visible) {
+            abort(403);
+        }
     }
 }

@@ -13,17 +13,28 @@ class JobController extends Controller
     /**
      * Display a listing of jobs.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->authorize('jobs.view');
 
         $jobs = Job::query()
             ->with(['project', 'creator'])
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $term = '%' . trim($request->input('search')) . '%';
+                $query->where(function ($inner) use ($term) {
+                    $inner->where('title', 'like', $term)
+                        ->orWhere('department', 'like', $term);
+                });
+            })
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->input('status')))
+            ->when($request->filled('employment_type'), fn ($query) => $query->where('employment_type', $request->input('employment_type')))
             ->latest()
             ->paginate(15)
             ->withQueryString();
 
-        return view('jobs.index', compact('jobs'));
+        $filters = $request->only(['search', 'status', 'employment_type']);
+
+        return view('jobs.index', compact('jobs', 'filters'));
     }
 
     /**

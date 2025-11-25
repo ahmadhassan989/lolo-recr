@@ -70,8 +70,7 @@ class RecruiterPerformanceController extends Controller
      */
     protected function buildPerformanceCollection(Carbon $from, Carbon $to): Collection
     {
-        $recruiters = User::query()
-            ->where('role', 'recruiter')
+        $recruiters = User::role('recruiter')
             ->orderBy('name')
             ->get();
 

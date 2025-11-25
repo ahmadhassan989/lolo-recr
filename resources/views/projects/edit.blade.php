@@ -19,7 +19,7 @@
 
             <div class="rounded-xl bg-white p-6 shadow">
                 <form action="{{ route('projects.update', $project) }}" method="POST" class="space-y-6">
-                    @include('projects.partials.form', ['project' => $project])
+                    @include('projects.partials.form', ['project' => $project, 'teamLeadOptions' => $teamLeadOptions])
                 </form>
             </div>
         </div>

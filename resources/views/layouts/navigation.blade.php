@@ -1,183 +1,49 @@
-<nav x-data="{ open: false }" class="bg-white border-b border-gray-100">
-    <!-- Primary Navigation Menu -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-            <div class="flex">
-                <!-- Logo -->
-                <div class="shrink-0 flex items-center">
-                    @php
-                        $homeRoute = match (true) {
-                            Auth::user()->can('projects.view') => 'projects.index',
-                            Auth::user()->can('candidates.view') => 'candidates.index',
-                            default => 'applications.index',
-                        };
-                    @endphp
-                    <a href="{{ route($homeRoute) }}">
-                        <x-application-logo class="block h-9 w-auto fill-current text-gray-800" />
-                    </a>
-                </div>
+@php
+    $homeRoute = match (true) {
+        Auth::user()->can('projects.view') => 'projects.index',
+        Auth::user()->can('candidates.view') => 'candidates.index',
+        default => 'applications.index',
+    };
 
-                <!-- Navigation Links -->
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    @can('projects.view')
-                        <x-nav-link :href="route('projects.index')" :active="request()->routeIs('projects.*')">
-                            {{ __('Projects') }}
-                        </x-nav-link>
-                    @endcan
+    $navItems = [
+        ['label' => 'Dashboard', 'route' => 'admin.dashboard', 'match' => 'admin.dashboard', 'can' => 'projects.view'],
+        ['label' => 'Projects', 'route' => 'projects.index', 'match' => 'projects.*', 'can' => 'projects.view'],
+        ['label' => 'Candidates', 'route' => 'candidates.index', 'match' => 'candidates.*', 'can' => 'candidates.view'],
+        ['label' => 'Applications', 'route' => 'applications.index', 'match' => 'applications.*', 'can' => 'applications.view'],
+        ['label' => 'Job Posts', 'route' => 'jobs.index', 'match' => 'jobs.*', 'can' => 'jobs.view'],
+        ['label' => 'Job Offers', 'route' => 'job-offers.index', 'match' => 'job-offers.*', 'can' => 'offers.view'],
+        ['label' => 'Analytics', 'route' => 'admin.analytics', 'match' => 'admin.analytics', 'can' => 'analytics.view'],
+    ];
 
-                    @can('candidates.view')
-                        <x-nav-link :href="route('candidates.index')" :active="request()->routeIs('candidates.*')">
-                            {{ __('Candidates') }}
-                        </x-nav-link>
-                    @endcan
+    $adminItems = [
+        ['label' => 'Manage Users', 'route' => 'admin.users.index', 'match' => 'admin.users.*'],
+        ['label' => 'Roles & Permissions', 'route' => 'admin.roles.index', 'match' => 'admin.roles.*'],
+        ['label' => 'Project Teams', 'route' => 'admin.project-teams.index', 'match' => 'admin.project-teams.*'],
+    ];
+@endphp
 
-                    @can('applications.view')
-                        <x-nav-link :href="route('applications.index')" :active="request()->routeIs('applications.*')">
-                            {{ __('Applications') }}
-                        </x-nav-link>
-                    @endcan
+<div class="lg:fixed lg:inset-y-0 lg:z-30 lg:flex lg:w-64 lg:flex-col">
+    <!-- Mobile overlay -->
+    <div class="fixed inset-0 z-40 flex lg:hidden" x-show="sidebarOpen" x-cloak>
+        <div class="fixed inset-0 bg-slate-900/60" @click="sidebarOpen = false"></div>
 
-                    @can('jobs.view')
-                        <x-nav-link :href="route('jobs.index')" :active="request()->routeIs('jobs.*')">
-                            {{ __('Job Posts') }}
-                        </x-nav-link>
-                    @endcan
-
-                    @can('offers.view')
-                        <x-nav-link :href="route('job-offers.index')" :active="request()->routeIs('job-offers.*')">
-                            {{ __('Job Offers') }}
-                        </x-nav-link>
-                    @endcan
-
-                    @can('projects.view')
-                        <x-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
-                            {{ __('Dashboard') }}
-                        </x-nav-link>
-                    @endcan
-
-                    @can('analytics.view')
-                        <x-nav-link :href="route('admin.analytics')" :active="request()->routeIs('admin.analytics')">
-                            {{ __('Analytics') }}
-                        </x-nav-link>
-                    @endcan
-                </div>
-            </div>
-
-            <!-- Settings Dropdown -->
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
-                <x-dropdown align="right" width="48">
-                    <x-slot name="trigger">
-                        <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 bg-white hover:text-gray-700 focus:outline-none transition ease-in-out duration-150">
-                            <div>{{ Auth::user()->name }}</div>
-
-                            <div class="ms-1">
-                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                        </button>
-                    </x-slot>
-
-                    <x-slot name="content">
-                        <x-dropdown-link :href="route('profile.edit')">
-                            {{ __('Profile') }}
-                        </x-dropdown-link>
-
-                        <!-- Authentication -->
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
-
-                            <x-dropdown-link :href="route('logout')"
-                                    onclick="event.preventDefault();
-                                                this.closest('form').submit();">
-                                {{ __('Log Out') }}
-                            </x-dropdown-link>
-                        </form>
-                    </x-slot>
-                </x-dropdown>
-            </div>
-
-            <!-- Hamburger -->
-            <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 focus:text-gray-500 transition duration-150 ease-in-out">
-                    <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                        <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                        <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
+        <div class="relative ml-0 flex w-64 flex-1">
+            @include('layouts.sidebar-menu', [
+                'homeRoute' => $homeRoute,
+                'navItems' => $navItems,
+                'adminItems' => $adminItems,
+                'isMobile' => true,
+            ])
         </div>
     </div>
 
-    <!-- Responsive Navigation Menu -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
-        <div class="pt-2 pb-3 space-y-1">
-            @can('projects.view')
-                <x-responsive-nav-link :href="route('projects.index')" :active="request()->routeIs('projects.*')">
-                    {{ __('Projects') }}
-                </x-responsive-nav-link>
-            @endcan
-
-            @can('candidates.view')
-                <x-responsive-nav-link :href="route('candidates.index')" :active="request()->routeIs('candidates.*')">
-                    {{ __('Candidates') }}
-                </x-responsive-nav-link>
-            @endcan
-
-            @can('applications.view')
-                <x-responsive-nav-link :href="route('applications.index')" :active="request()->routeIs('applications.*')">
-                    {{ __('Applications') }}
-                </x-responsive-nav-link>
-            @endcan
-
-            @can('jobs.view')
-                <x-responsive-nav-link :href="route('jobs.index')" :active="request()->routeIs('jobs.*')">
-                    {{ __('Job Posts') }}
-                </x-responsive-nav-link>
-            @endcan
-
-            @can('offers.view')
-                <x-responsive-nav-link :href="route('job-offers.index')" :active="request()->routeIs('job-offers.*')">
-                    {{ __('Job Offers') }}
-                </x-responsive-nav-link>
-            @endcan
-
-            @can('projects.view')
-                <x-responsive-nav-link :href="route('admin.dashboard')" :active="request()->routeIs('admin.dashboard')">
-                    {{ __('Dashboard') }}
-                </x-responsive-nav-link>
-            @endcan
-
-            @can('analytics.view')
-                <x-responsive-nav-link :href="route('admin.analytics')" :active="request()->routeIs('admin.analytics')">
-                    {{ __('Analytics') }}
-                </x-responsive-nav-link>
-            @endcan
-        </div>
-
-        <!-- Responsive Settings Options -->
-        <div class="pt-4 pb-1 border-t border-gray-200">
-            <div class="px-4">
-                <div class="font-medium text-base text-gray-800">{{ Auth::user()->name }}</div>
-                <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
-            </div>
-
-            <div class="mt-3 space-y-1">
-                <x-responsive-nav-link :href="route('profile.edit')">
-                    {{ __('Profile') }}
-                </x-responsive-nav-link>
-
-                <!-- Authentication -->
-                <form method="POST" action="{{ route('logout') }}">
-                    @csrf
-
-                    <x-responsive-nav-link :href="route('logout')"
-                            onclick="event.preventDefault();
-                                        this.closest('form').submit();">
-                        {{ __('Log Out') }}
-                    </x-responsive-nav-link>
-                </form>
-            </div>
-        </div>
-    </div>
-</nav>
+    <!-- Desktop sidebar -->
+    <aside class="hidden h-full w-64 flex-1 border-r border-slate-200 bg-white lg:flex">
+        @include('layouts.sidebar-menu', [
+            'homeRoute' => $homeRoute,
+            'navItems' => $navItems,
+            'adminItems' => $adminItems,
+            'isMobile' => false,
+        ])
+    </aside>
+</div>

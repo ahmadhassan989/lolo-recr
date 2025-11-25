@@ -13,18 +13,17 @@ class CandidatesTableSeeder extends Seeder
      */
     public function run(): void
     {
-        $recruiterIds = User::query()
-            ->where('role', 'recruiter')
-            ->pluck('id');
+        $recruiterIds = User::role('recruiter')->pluck('id');
 
         if ($recruiterIds->isEmpty()) {
-            $recruiterIds = collect([
-                User::factory()->create([
-                    'name' => 'Seeder Recruiter',
-                    'email' => 'recruiter+seed@lolo.test',
-                    'role' => 'recruiter',
-                ])->id,
+            $recruiter = User::factory()->create([
+                'name' => 'Seeder Recruiter',
+                'email' => 'recruiter+seed@lolo.test',
             ]);
+
+            $recruiter->assignRole('recruiter');
+
+            $recruiterIds = collect([$recruiter->id]);
         }
 
         Candidate::factory()

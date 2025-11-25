@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\Project;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,8 +17,30 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): View
     {
+        $user = $request->user()->load('roles');
+
+        $assignedProjects = $user->projectsAssigned()
+            ->withCount('applications')
+            ->orderBy('title')
+            ->get();
+
+        $teamLeadProjects = Project::query()
+            ->where('team_lead_id', $user->id)
+            ->withCount('applications')
+            ->orderBy('title')
+            ->get();
+
+        $stats = [
+            'assigned_projects' => $assignedProjects->count(),
+            'leading_projects' => $teamLeadProjects->count(),
+            'applications_updated' => $user->updatedApplications()->count(),
+        ];
+
         return view('profile.edit', [
-            'user' => $request->user(),
+            'user' => $user,
+            'stats' => $stats,
+            'assignedProjects' => $assignedProjects,
+            'teamLeadProjects' => $teamLeadProjects,
         ]);
     }
 

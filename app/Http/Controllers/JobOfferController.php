@@ -16,16 +16,37 @@ class JobOfferController extends Controller
     /**
      * Display a list of job offers.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->authorize('offers.view');
 
+        $user = $request->user();
+        $projectIds = $user->accessibleProjectIds();
+
         $offers = JobOffer::query()
             ->with(['candidate', 'project', 'creator'])
+            ->when($projectIds, fn ($query) => $query->whereIn('project_id', $projectIds->all()))
+            ->when($request->filled('status'), fn ($query) => $query->where('status', $request->input('status')))
+            ->when($request->filled('project_id'), fn ($query) => $query->where('project_id', $request->integer('project_id')))
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $term = '%' . trim($request->input('search')) . '%';
+                $query->whereHas('candidate', function ($candidateQuery) use ($term) {
+                    $candidateQuery->where('first_name', 'like', $term)
+                        ->orWhere('last_name', 'like', $term)
+                        ->orWhere('email', 'like', $term);
+                });
+            })
             ->latest()
-            ->paginate(15);
+            ->paginate(15)
+            ->withQueryString();
 
-        return view('job_offers.index', compact('offers'));
+        $projectOptions = Project::query()
+            ->orderBy('title')
+            ->when($projectIds, fn ($query) => $query->whereIn('id', $projectIds->all()))
+            ->get(['id', 'title']);
+        $filters = $request->only(['status', 'project_id', 'search']);
+
+        return view('job_offers.index', compact('offers', 'projectOptions', 'filters'));
     }
 
     /**

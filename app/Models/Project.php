@@ -21,6 +21,7 @@ class Project extends Model
         'description',
         'status',
         'created_by',
+        'team_lead_id',
     ];
 
     /**
@@ -45,5 +46,21 @@ class Project extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * @return HasMany<ProjectUser>
+     */
+    public function team(): HasMany
+    {
+        return $this->hasMany(ProjectUser::class);
+    }
+
+    /**
+     * @return BelongsTo<User, Project>
+     */
+    public function teamLead(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'team_lead_id');
     }
 }

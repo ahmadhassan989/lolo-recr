@@ -13,13 +13,31 @@ class ProjectsTableSeeder extends Seeder
      */
     public function run(): void
     {
-        $creator = User::where('role', 'super_admin')->first()
-            ?? User::factory()->create(['role' => 'super_admin']);
+        $creator = User::role('super_admin')->first();
+
+        if (! $creator) {
+            $creator = User::factory()->create([
+                'name' => 'Seeder Super Admin',
+                'email' => 'superadmin+seed@lolo.test',
+            ]);
+
+            $creator->assignRole('super_admin');
+        }
+
+        $teamLead = User::role('hr')->first();
+
+        if (! $teamLead) {
+            $teamLead = User::factory()->create([
+                'name' => 'Seeder HR Lead',
+                'email' => 'hr+lead@lolo.test',
+            ]);
+            $teamLead->assignRole('hr');
+        }
 
         Project::factory()
             ->count(5)
             ->for($creator, 'creator')
-            ->state(fn () => ['status' => 'open'])
+            ->state(fn () => ['status' => 'open', 'team_lead_id' => $teamLead->id])
             ->create();
     }
 }

@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Role;
 
 class UsersTableSeeder extends Seeder
 {
@@ -31,16 +32,19 @@ class UsersTableSeeder extends Seeder
             ],
         ];
 
-        foreach ($users as $user) {
-            User::updateOrCreate(
-                ['email' => $user['email']],
+        foreach ($users as $userData) {
+            $user = User::updateOrCreate(
+                ['email' => $userData['email']],
                 [
-                    'name' => $user['name'],
-                    'role' => $user['role'],
+                    'name' => $userData['name'],
                     'password' => Hash::make('password'),
                     'email_verified_at' => now(),
                 ]
             );
+
+            $role = Role::findOrCreate($userData['role'], 'web');
+            $user->syncRoles([$role]);
+
         }
     }
 }

@@ -13,7 +13,37 @@
                 </div>
             @endif
 
-            <div class="overflow-x-auto rounded-xl bg-white shadow">
+            <div class="rounded-xl bg-white p-4 shadow space-y-4">
+                <form method="GET" class="grid gap-4 md:grid-cols-4">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Search Candidate</label>
+                        <input type="text" name="search" value="{{ $filters['search'] ?? '' }}" class="w-full rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:ring-slate-500" placeholder="Name or email">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Status</label>
+                        <select name="status" class="w-full rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:ring-slate-500">
+                            <option value="">All</option>
+                            @foreach (['pending','accepted','declined','expired'] as $status)
+                                <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ ucfirst($status) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Project</label>
+                        <select name="project_id" class="w-full rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:ring-slate-500">
+                            <option value="">All</option>
+                            @foreach ($projectOptions as $project)
+                                <option value="{{ $project->id }}" @selected(($filters['project_id'] ?? '') == $project->id)>{{ $project->title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="md:col-span-4 flex justify-end gap-3">
+                        <a href="{{ route('job-offers.index') }}" class="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Reset</a>
+                        <button class="rounded-md bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Apply</button>
+                    </div>
+                </form>
+
+                <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200 text-sm">
                     <thead class="bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
                         <tr>

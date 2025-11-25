@@ -13,7 +13,46 @@
                 </div>
             @endif
 
-            <div class="rounded-xl bg-white p-6 shadow">
+            <div class="rounded-xl bg-white p-6 shadow space-y-4">
+                <form method="GET" class="grid gap-4 md:grid-cols-5">
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Search Candidate</label>
+                        <input type="text" name="search" value="{{ $filters['search'] ?? '' }}" class="w-full rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:ring-slate-500" placeholder="Name or email">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Status</label>
+                        <select name="status" class="w-full rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:ring-slate-500">
+                            <option value="">All</option>
+                            @foreach (['applied','screening','interview','offer','hired','rejected'] as $status)
+                                <option value="{{ $status }}" @selected(($filters['status'] ?? '') === $status)>{{ ucfirst($status) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">Project</label>
+                        <select name="project_id" class="w-full rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:ring-slate-500">
+                            <option value="">All</option>
+                            @foreach ($projectOptions as $projectOption)
+                                <option value="{{ $projectOption->id }}" @selected(($filters['project_id'] ?? '') == $projectOption->id)>{{ $projectOption->title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="flex gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">From</label>
+                            <input type="date" name="date_from" value="{{ $filters['date_from'] ?? '' }}" class="w-full rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:ring-slate-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 uppercase mb-1">To</label>
+                            <input type="date" name="date_to" value="{{ $filters['date_to'] ?? '' }}" class="w-full rounded border border-slate-300 px-3 py-2 focus:border-slate-500 focus:ring-slate-500">
+                        </div>
+                    </div>
+                    <div class="md:col-span-5 flex justify-end gap-3">
+                        <a href="{{ route('applications.index') }}" class="rounded-md border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">Reset</a>
+                        <button class="rounded-md bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700">Apply</button>
+                    </div>
+                </form>
+
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-gray-200 text-sm">
                         <thead class="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">

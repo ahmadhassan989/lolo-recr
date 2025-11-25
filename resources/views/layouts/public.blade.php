@@ -11,6 +11,15 @@
     <h1 class="logo"><a href="{{ route('home') }}">Lolo Recruiting</a></h1>
     <nav>
         <a href="{{ route('home') }}">Careers</a>
+        @auth
+            <a href="{{ route('profile.edit') }}" class="profile-link">Profile</a>
+            <form method="POST" action="{{ route('logout') }}" class="inline logout-form">
+                @csrf
+                <button type="submit" class="login-link">Logout</button>
+            </form>
+        @else
+            <a href="{{ route('login') }}" class="login-link">Login</a>
+        @endauth
     </nav>
 </header>
 <main class="content">

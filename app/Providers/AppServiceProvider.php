@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Spatie\Permission\PermissionRegistrar;
+use Illuminate\Support\Facades\Gate;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +21,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        app(PermissionRegistrar::class)->setPermissionsTeamId(0);
+
+        Gate::define('users.create', function ($user) {
+            return $user->hasRole('super_admin');
+        });
     }
 }

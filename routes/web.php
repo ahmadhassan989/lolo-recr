@@ -2,8 +2,11 @@
 
 use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ProjectTeamController;
 use App\Http\Controllers\Admin\ReportsExportController;
 use App\Http\Controllers\Admin\RecruiterPerformanceController;
+use App\Http\Controllers\Admin\RolePermissionController;
+use App\Http\Controllers\Admin\UserManagementController;
 use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AttachmentController;
 use App\Http\Controllers\CandidateController;
@@ -46,7 +49,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('attachments/{attachment}/download', [AttachmentController::class, 'download'])->name('attachments.download');
     Route::delete('attachments/{attachment}', [AttachmentController::class, 'destroy'])->name('attachments.destroy');
 
-    Route::get('admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
+    Route::get('admin/dashboard', [DashboardController::class, 'index'])
+        ->name('admin.dashboard');
     Route::get('admin/analytics', AnalyticsController::class)
         ->middleware('can:analytics.view')
         ->name('admin.analytics');
@@ -67,6 +71,21 @@ Route::middleware(['auth'])->group(function () {
     Route::get('admin/reports/recruiters/export', [RecruiterPerformanceController::class, 'exportCsv'])
         ->middleware('can:analytics.view')
         ->name('admin.reports.recruiters.export');
+
+    Route::middleware('role:super_admin')
+        ->prefix('admin')
+        ->name('admin.')
+        ->group(function () {
+            Route::resource('users', UserManagementController::class)
+                ->only(['index', 'create', 'store', 'edit', 'update']);
+
+            Route::resource('roles', RolePermissionController::class)
+                ->only(['index', 'create', 'store', 'edit', 'update']);
+
+            Route::resource('project-teams', ProjectTeamController::class)
+                ->parameters(['project-teams' => 'project'])
+                ->only(['index', 'edit', 'update']);
+        });
 
     Route::get('job-offers', [JobOfferController::class, 'index'])
         ->middleware('can:offers.view')

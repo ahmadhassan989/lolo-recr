@@ -57,6 +57,17 @@
                     </p>
                     <p><span class="font-medium text-gray-700">Created:</span> {{ $project->created_at->format('M d, Y') }}</p>
                     <p><span class="font-medium text-gray-700">Applications:</span> {{ $project->applications->count() }}</p>
+                    <div>
+                        <span class="font-medium text-gray-700">Team Lead:</span>
+                        @if ($project->teamLead)
+                            <div class="mt-1 text-sm text-gray-700">
+                                <div class="font-semibold text-slate-800">{{ $project->teamLead->name }}</div>
+                                <div class="text-xs text-slate-500">{{ $project->teamLead->email }}</div>
+                            </div>
+                        @else
+                            <span class="ml-2 text-sm text-slate-500">Not assigned</span>
+                        @endif
+                    </div>
                 </div>
             </div>
 

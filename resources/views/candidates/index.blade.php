@@ -63,6 +63,15 @@
                             class="w-full rounded border-gray-300 focus:border-slate-500 focus:ring-slate-500"
                         >
                     </div>
+                    <div class="space-y-1">
+                        <label class="block text-xs font-medium text-gray-600 uppercase">Assigned Project</label>
+                        <select name="project_id" class="w-full rounded border-gray-300 focus:border-slate-500 focus:ring-slate-500">
+                            <option value="">Any</option>
+                            @foreach ($filterProjects as $filterProject)
+                                <option value="{{ $filterProject->id }}" @selected(request('project_id') == $filterProject->id)>{{ $filterProject->title }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
 
                 <div class="mt-4 flex items-center gap-3">
