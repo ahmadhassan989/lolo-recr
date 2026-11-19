@@ -6,10 +6,11 @@ use App\Models\Candidate;
 use App\Models\CandidateLog;
 use App\Models\JobOffer;
 use App\Models\Project;
-use Illuminate\Http\Request;
-use Illuminate\Http\RedirectResponse;
-use Illuminate\View\View;
+use App\Notifications\JobOfferSent;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\View\View;
 
 class JobOfferController extends Controller
 {
@@ -29,7 +30,7 @@ class JobOfferController extends Controller
             ->when($request->filled('status'), fn ($query) => $query->where('status', $request->input('status')))
             ->when($request->filled('project_id'), fn ($query) => $query->where('project_id', $request->integer('project_id')))
             ->when($request->filled('search'), function ($query) use ($request) {
-                $term = '%' . trim($request->input('search')) . '%';
+                $term = '%'.trim($request->input('search')).'%';
                 $query->whereHas('candidate', function ($candidateQuery) use ($term) {
                     $candidateQuery->where('first_name', 'like', $term)
                         ->orWhere('last_name', 'like', $term)
@@ -57,7 +58,7 @@ class JobOfferController extends Controller
         $this->authorize('offers.manage');
 
         $candidateId = $request->integer('candidate_id');
-        abort_if(!$candidateId, 404);
+        abort_if(! $candidateId, 404);
 
         $candidate = Candidate::findOrFail($candidateId);
         $projects = Project::query()
@@ -100,6 +101,12 @@ class JobOfferController extends Controller
             'notes' => $offer->position_title,
         ]);
 
+        try {
+            $offer->load('candidate')->candidate->notify(new JobOfferSent($offer));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
         return redirect()
             ->route('job-offers.show', $offer)
             ->with('status', 'Job offer created successfully.');
@@ -128,7 +135,7 @@ class JobOfferController extends Controller
 
         $pdf = Pdf::loadView('pdf.job_offer', ['offer' => $jobOffer]);
 
-        return $pdf->download('JobOffer_' . $jobOffer->id . '.pdf');
+        return $pdf->download('JobOffer_'.$jobOffer->id.'.pdf');
     }
 
     /**
@@ -146,7 +153,7 @@ class JobOfferController extends Controller
 
         CandidateLog::create([
             'candidate_id' => $jobOffer->candidate_id,
-            'action' => 'Job offer ' . $validated['status'],
+            'action' => 'Job offer '.$validated['status'],
             'performed_by' => $request->user()->id,
             'notes' => $jobOffer->position_title,
         ]);

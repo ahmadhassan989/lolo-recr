@@ -4,8 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Candidate;
 use App\Models\Interview;
-use Illuminate\Http\Request;
+use App\Notifications\InterviewScheduled;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
 class InterviewController extends Controller
@@ -26,7 +27,13 @@ class InterviewController extends Controller
             'notes' => ['nullable', 'string'],
         ]);
 
-        $candidate->interviews()->create($validated);
+        $interview = $candidate->interviews()->create($validated);
+
+        try {
+            $candidate->notify(new InterviewScheduled($interview));
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return back()->with('status', 'Interview logged successfully.');
     }

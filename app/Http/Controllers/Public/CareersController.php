@@ -7,8 +7,11 @@ use App\Models\Application;
 use App\Models\Candidate;
 use App\Models\CandidateLog;
 use App\Models\Job;
+use App\Notifications\ApplicationReceived;
+use App\Notifications\NewApplicationAlert;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\View\View;
 
 class CareersController extends Controller
@@ -95,10 +98,17 @@ class CareersController extends Controller
 
         CandidateLog::create([
             'candidate_id' => $candidate->id,
-            'action' => 'Applied for ' . $job->title,
+            'action' => 'Applied for '.$job->title,
             'performed_by' => null,
-            'notes' => 'Application #' . $application->id,
+            'notes' => 'Application #'.$application->id,
         ]);
+
+        try {
+            $candidate->notify(new ApplicationReceived($application));
+            $this->alertProjectTeam($application);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return redirect()->route('careers.thanks');
     }
@@ -118,5 +128,20 @@ class CareersController extends Controller
         if ($job->deadline && $job->deadline->copy()->endOfDay()->isPast()) {
             abort(404);
         }
+    }
+
+    protected function alertProjectTeam(Application $application): void
+    {
+        $project = $application->project;
+        if (! $project) {
+            return;
+        }
+
+        $recipients = collect([$project->teamLead])
+            ->merge($project->team->map->user)
+            ->filter()
+            ->unique('id');
+
+        Notification::send($recipients, new NewApplicationAlert($application));
     }
 }
