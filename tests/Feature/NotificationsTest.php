@@ -43,6 +43,26 @@ class NotificationsTest extends TestCase
         Notification::assertSentTo($lead, NewApplicationAlert::class);
     }
 
+    public function test_duplicate_application_is_ignored(): void
+    {
+        Storage::fake('public');
+        Notification::fake();
+
+        $job = Job::factory()->create(['status' => 'open']);
+        $payload = [
+            'first_name' => 'Sara',
+            'last_name' => 'Ahmad',
+            'email' => 'dup@example.com',
+            'resume' => UploadedFile::fake()->create('cv.pdf', 100, 'application/pdf'),
+        ];
+
+        $this->post(route('careers.submit', $job), $payload)->assertRedirect(route('careers.thanks'));
+        $this->post(route('careers.submit', $job), $payload)->assertRedirect(route('careers.thanks'));
+
+        $this->assertSame(1, \App\Models\Application::count());
+        Notification::assertSentToTimes(Candidate::first(), ApplicationReceived::class, 1);
+    }
+
     public function test_interview_store_notifies_candidate(): void
     {
         Notification::fake();

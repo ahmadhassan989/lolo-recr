@@ -88,26 +88,29 @@ class CareersController extends Controller
 
         $candidate->save();
 
-        $application = Application::create([
-            'project_id' => $job->project_id,
-            'job_id' => $job->id,
-            'candidate_id' => $candidate->id,
-            'status' => 'applied',
-            'notes' => $validated['cover_letter'] ?? null,
-        ]);
+        $application = Application::firstOrCreate(
+            ['candidate_id' => $candidate->id, 'job_id' => $job->id],
+            [
+                'project_id' => $job->project_id,
+                'status' => 'applied',
+                'notes' => $validated['cover_letter'] ?? null,
+            ]
+        );
 
-        CandidateLog::create([
-            'candidate_id' => $candidate->id,
-            'action' => 'Applied for '.$job->title,
-            'performed_by' => null,
-            'notes' => 'Application #'.$application->id,
-        ]);
+        if ($application->wasRecentlyCreated) {
+            CandidateLog::create([
+                'candidate_id' => $candidate->id,
+                'action' => 'Applied for '.$job->title,
+                'performed_by' => null,
+                'notes' => 'Application #'.$application->id,
+            ]);
 
-        try {
-            $candidate->notify(new ApplicationReceived($application));
-            $this->alertProjectTeam($application);
-        } catch (\Throwable $e) {
-            report($e);
+            try {
+                $candidate->notify(new ApplicationReceived($application));
+                $this->alertProjectTeam($application);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
 
         return redirect()->route('careers.thanks');
