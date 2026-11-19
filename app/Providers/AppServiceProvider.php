@@ -21,7 +21,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        app(PermissionRegistrar::class)->setPermissionsTeamId(0);
+        if (class_exists(PermissionRegistrar::class)) {
+            app(PermissionRegistrar::class)->setPermissionsTeamId(0);
+        }
 
         Gate::define('users.create', function ($user) {
             return $user->hasRole('super_admin');
