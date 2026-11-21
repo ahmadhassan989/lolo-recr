@@ -19,18 +19,35 @@ class CareersController extends Controller
     /**
      * Display a listing of open jobs.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
-        $jobs = Job::query()
+        $openJobs = Job::query()
             ->where('status', 'open')
             ->where(function ($query) {
                 $query->whereNull('deadline')
                     ->orWhereDate('deadline', '>=', now()->toDateString());
-            })
-            ->orderByDesc('created_at')
-            ->paginate(9);
+            });
 
-        return view('public.careers.index', compact('jobs'));
+        $jobs = (clone $openJobs)
+            ->when($request->filled('q'), function ($query) use ($request) {
+                $term = '%'.$request->string('q')->trim().'%';
+
+                $query->where(function ($q) use ($term) {
+                    $q->where('title', 'like', $term)
+                        ->orWhere('department', 'like', $term)
+                        ->orWhere('skills', 'like', $term);
+                });
+            })
+            ->when($request->filled('department'), fn ($query) => $query->where('department', $request->department))
+            ->when($request->filled('type'), fn ($query) => $query->where('employment_type', $request->type))
+            ->orderByDesc('created_at')
+            ->paginate(9)
+            ->withQueryString();
+
+        $departments = (clone $openJobs)->whereNotNull('department')->distinct()->orderBy('department')->pluck('department');
+        $types = (clone $openJobs)->whereNotNull('employment_type')->distinct()->orderBy('employment_type')->pluck('employment_type');
+
+        return view('public.careers.index', compact('jobs', 'departments', 'types'));
     }
 
     /**
